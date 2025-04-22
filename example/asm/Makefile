@@ -4,6 +4,7 @@ PROGRAM_NAME := main
 RISCV_PREFIX ?= riscv64-unknown-elf-
 CC      := $(RISCV_PREFIX)gcc
 OBJCOPY := $(RISCV_PREFIX)objcopy
+OBJDUMP := $(RISCV_PREFIX)objdump
 
 # Flags
 CFLAGS  := -march=rv64im -mabi=lp64 -nostdlib -ffreestanding -Wall -Wextra -g
@@ -19,7 +20,7 @@ TARGET_BIN := $(PROGRAM_NAME).bin
 all: $(TARGET_BIN)
 
 %.o: %.s
-	$(CC) $(CLFAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(TARGET_ELF): $(OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ $^
@@ -30,4 +31,8 @@ $(TARGET_BIN): $(TARGET_ELF)
 .PHONY: clean
 clean:
 	rm -f $(OBJECTS) $(TARGET_ELF) $(TARGET_BIN)
+
+.PHONY: disassemble
+disassemble: $(TARGET_BIN)
+	$(OBJDUMP) -b binary -m riscv:rv64 -D $(TARGET_BIN)
 

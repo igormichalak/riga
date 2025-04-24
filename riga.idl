@@ -1,0 +1,6 @@
+interface Standalone_Core {
+    void Standalone_Core();
+    void program_compile();
+    void link_flash_memory(VoidPtr p, unsigned long len);
+};
+

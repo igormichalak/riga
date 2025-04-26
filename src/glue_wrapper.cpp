@@ -4,6 +4,7 @@
 #include <expected>
 #include <array>
 #include <vector>
+#include <unordered_map>
 #include <bit>
 #include <iostream>
 #include <format>
@@ -36,6 +37,16 @@ public:
 
 	void program_compile();
 	void link_flash_memory(void *p, size_t len);
+	void define_symbol(u64 value, char const *name);
+
+	char const *disassembly_view();
+
+	size_t get_memory_size();
+	void *get_memory_ptr();
+	void *get_register_file_ptr();
+
+	void run();
+	void step();
 private:
 	// x0-x31 registers.
 	std::array<u64, 32> m_register_file{};
@@ -49,13 +60,15 @@ private:
 
 	std::array<u8, MEMORY_SIZE> m_memory{};
 
-	u64                      m_pc{0};
+	u64	                  m_pc{0};
 	std::vector<Instruction> m_instructions;
-	Bit_Vector               m_instruction_offset_vec;
+	Bit_Vector	           m_instruction_offset_vec;
 
 	// Variably-sized flash/program memory.
-	u8    *m_flash_memory{nullptr};
+	u8	*m_flash_memory{nullptr};
 	size_t m_flash_memory_size{0};
+
+	std::unordered_map<u64, std::string_view> m_symbol_table{};
 
 	auto load_instruction(u32 w) -> std::expected<size_t, Decode_Error>;
 };

@@ -1,31 +1,37 @@
 <script>
-  let files = $state();
+  let { data } = $props();
+  let module = $state();
 
   $effect(() => {
-    if (!files || files.length == 0) return;
+    if (!module) return;
 
-    files[0].arrayBuffer().then(buf => new Uint8Array(buf)).then(buf => {
-      const core = new Module.Standalone_Core();
+    const ptr = module._malloc(data.fileDataBinary.byteLength + 3);
+    const loadPtr = (ptr + 3) & (~3);
 
-      const ptr = Module._malloc(buf.byteLength + 3);
-      const loadAddress = (ptr + 3) & (~3);
+    module.HEAPU8.set(data.fileDataBinary, loadPtr);
 
-      Module.HEAPU8.set(buf, loadAddress);
+    const core = new module.Standalone_Core();
+    core.link_flash_memory(loadPtr, data.fileDataBinary.byteLength);
+    core.program_compile();
 
-      core.link_flash_memory(loadAddress, buf.byteLength);
-      core.program_compile();
-
-      Module._free(ptr);
-      Module.destroy(core);
-    });
+    return () => {
+      module.destroy(core);
+      module._free(ptr);
+    };
   });
+
+  function onWasmLoad() {
+    createModule().then(m => {
+      module = m;
+    });
+  }
 </script>
 
 <svelte:head>
-  <script type="text/javascript" src="./riga.js"></script>
+  <script async type="text/javascript" src="./riga.js"
+    onload={onWasmLoad}
+  ></script>
 </svelte:head>
 
-<div>
-  <label for="program">Upload program</label>
-  <input bind:files type="file" id="program" name="program">
-</div>
+<a href="/upload">New</a>
+<p>Simulator</p>

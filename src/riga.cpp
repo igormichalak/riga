@@ -4,6 +4,7 @@
 #include <expected>
 #include <array>
 #include <vector>
+#include <unordered_map>
 #include <bit>
 #include <iostream>
 #include <format>
@@ -47,20 +48,31 @@ struct Standalone_Core {
 	static constexpr size_t MEMORY_SIZE = 1024 * 1024;
 	std::array<u8, MEMORY_SIZE> m_memory{};
 
-	u64                      m_pc{0};
+	u64	                  m_pc{0};
 	std::vector<Instruction> m_instructions;
-	Bit_Vector               m_instruction_offset_vec;
+	Bit_Vector	           m_instruction_offset_vec;
 
 	// Variably-sized flash/program memory.
-	u8    *m_flash_memory{nullptr};
+	u8	*m_flash_memory{nullptr};
 	size_t m_flash_memory_size{0};
+
+	std::unordered_map<u64, std::string_view> m_symbol_table{};
 
 	auto load_instruction(u32 w) -> std::expected<size_t, Decode_Error>;
 
 	void program_compile();
 	void link_flash_memory(void *p, size_t len);
-};
+	void define_symbol(u64 value, char const *name);
 
+	char const *disassembly_view();
+
+	size_t get_memory_size();
+	void *get_memory_ptr();
+	void *get_register_file_ptr();
+
+	void run();
+	void step();
+};
 
 auto Standalone_Core::load_instruction(u32 w)
 	-> std::expected<size_t, Decode_Error>
@@ -101,6 +113,34 @@ void Standalone_Core::program_compile() {
 }
 
 void Standalone_Core::link_flash_memory(void *p, size_t len) {
-	m_flash_memory      = static_cast<u8 *>(p);
+	m_flash_memory	  = static_cast<u8 *>(p);
 	m_flash_memory_size = len;
+}
+
+void Standalone_Core::define_symbol(u64 value, const char *name) {
+	m_symbol_table[value] = name;
+}
+
+char const *Standalone_Core::disassembly_view() {
+	return "# Program disassembly";
+}
+
+size_t Standalone_Core::get_memory_size() {
+	return MEMORY_SIZE;
+}
+
+void *Standalone_Core::get_memory_ptr() {
+	return m_memory.data();
+}
+
+void *Standalone_Core::get_register_file_ptr() {
+	return m_register_file.data();
+}
+
+void Standalone_Core::run() {
+	return;
+}
+
+void Standalone_Core::step() {
+	return;
 }

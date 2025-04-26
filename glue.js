@@ -226,6 +226,52 @@ Standalone_Core.prototype['link_flash_memory'] = Standalone_Core.prototype.link_
   _emscripten_bind_Standalone_Core_link_flash_memory_2(self, p, len);
 };
 
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['define_symbol'] = Standalone_Core.prototype.define_symbol = function(value, name) {
+  var self = this.ptr;
+  ensureCache.prepare();
+  if (value && typeof value === 'object') value = value.ptr;
+  if (name && typeof name === 'object') name = name.ptr;
+  else name = ensureString(name);
+  _emscripten_bind_Standalone_Core_define_symbol_2(self, value, name);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['disassembly_view'] = Standalone_Core.prototype.disassembly_view = function() {
+  var self = this.ptr;
+  return UTF8ToString(_emscripten_bind_Standalone_Core_disassembly_view_0(self));
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['get_memory_size'] = Standalone_Core.prototype.get_memory_size = function() {
+  var self = this.ptr;
+  return _emscripten_bind_Standalone_Core_get_memory_size_0(self);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['get_memory_ptr'] = Standalone_Core.prototype.get_memory_ptr = function() {
+  var self = this.ptr;
+  return wrapPointer(_emscripten_bind_Standalone_Core_get_memory_ptr_0(self), VoidPtr);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['get_register_file_ptr'] = Standalone_Core.prototype.get_register_file_ptr = function() {
+  var self = this.ptr;
+  return wrapPointer(_emscripten_bind_Standalone_Core_get_register_file_ptr_0(self), VoidPtr);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['run'] = Standalone_Core.prototype.run = function() {
+  var self = this.ptr;
+  _emscripten_bind_Standalone_Core_run_0(self);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['step'] = Standalone_Core.prototype.step = function() {
+  var self = this.ptr;
+  _emscripten_bind_Standalone_Core_step_0(self);
+};
+
 
 /** @suppress {undefinedVars, duplicate} @this{Object} */
 Standalone_Core.prototype['__destroy__'] = Standalone_Core.prototype.__destroy__ = function() {

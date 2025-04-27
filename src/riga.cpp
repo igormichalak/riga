@@ -10,29 +10,36 @@
 #include <format>
 
 #include "riga_bit_vector.h"
-#include "riga_decode.h"
 #include "riga_opcode.h"
+#include "riga_decode.h"
 
 #include "riga_bit_vector.cpp"
+#include "riga_opcode.cpp"
 #include "riga_decode.cpp"
 
 struct Instruction {
+	u8 size;
+	Instr_Fmt fmt;
 	Opcode opcode;
-	union {
-		struct {
-			// U,J,I,R-type -> rd
-			// B,S-type -> rs2
-			u8 op0;
-			// U,J-type -> (4 imm LSB) << 4
-			// I,B,S,R-type -> rs1/zimm
-			u8 op1;
-			u16 imm;
-		};
-		u32 opbits;
-	};
+	u8 rd;
+	u8 rs1;
+	u8 rs2;
+	s64 imm;
+	// union {
+	// 	struct {
+	// 		// U,J,I,R-type -> rd
+	// 		// B,S-type -> rs2
+	// 		u8 op0;
+	// 		// U,J-type -> (4 imm LSB) << 4
+	// 		// I,B,S,R-type -> rs1/zimm
+	// 		u8 op1;
+	// 		// U,J,I,B,S-type -> imm
+	// 		// R-type -> rs2
+	// 		u16 imm;
+	// 	};
+	// 	u32 opbits;
+	// };
 };
-
-enum class Decode_Error {};
 
 struct Standalone_Core {
 	// x0-x31 registers.
@@ -48,12 +55,12 @@ struct Standalone_Core {
 	static constexpr size_t MEMORY_SIZE = 1024 * 1024;
 	std::array<u8, MEMORY_SIZE> m_memory{};
 
-	u64	                  m_pc{0};
+	u64	                     m_pc{0};
 	std::vector<Instruction> m_instructions;
-	Bit_Vector	           m_instruction_offset_vec;
+	Bit_Vector	             m_instruction_offset_vec;
 
 	// Variably-sized flash/program memory.
-	u8	*m_flash_memory{nullptr};
+	u8	  *m_flash_memory{nullptr};
 	size_t m_flash_memory_size{0};
 
 	std::unordered_map<u64, std::string_view> m_symbol_table{};
@@ -64,7 +71,7 @@ struct Standalone_Core {
 	void link_flash_memory(void *p, size_t len);
 	void define_symbol(u64 value, char const *name);
 
-	char const *disassembly_view();
+	char *disassembly_view();
 
 	size_t get_memory_size();
 	void *get_memory_ptr();
@@ -77,9 +84,52 @@ struct Standalone_Core {
 auto Standalone_Core::load_instruction(u32 w)
 	-> std::expected<size_t, Decode_Error>
 {
-	Instr_Fmt ifmt = decode_instr_fmt(w);
-	std::cout << std::format("{} {:#010x}\n", to_string(ifmt), w);
-	return 4;
+	Instruction instr = {};
+	instr.size = ((w & 0b11) == 0b11) ? 4 : 2;
+	instr.fmt = decode_instr_fmt(w);
+
+	if (const auto opcode = decode_opcode(w); opcode.has_value()) {
+		instr.opcode = *opcode;
+	} else {
+		return std::unexpected(opcode.error());
+	}
+
+	switch (instr.fmt) {
+	case Instr_Fmt::U:
+		instr.imm = imm_u(w);
+		instr.rd  = rd(w);
+		break;
+	case Instr_Fmt::J:
+		instr.imm = imm_j(w);
+		instr.rd  = rd(w);
+		break;
+	case Instr_Fmt::I:
+		instr.imm = imm_i(w);
+		instr.rd  = rd(w);
+		instr.rs1 = rs1(w);
+		break;
+	case Instr_Fmt::B:
+		instr.imm = imm_b(w);
+		instr.rs1 = rs1(w);
+		instr.rs2 = rs2(w);
+		break;
+	case Instr_Fmt::S:
+		instr.imm = imm_s(w);
+		instr.rs1 = rs1(w);
+		instr.rs2 = rs2(w);
+		break;
+	case Instr_Fmt::R:
+		instr.rd  = rd(w);
+		instr.rs1 = rs1(w);
+		instr.rs2 = rs2(w);
+		break;
+	case Instr_Fmt::Unknown:
+	default:
+		return std::unexpected(Decode_Error::Illegal_Instruction);
+	}
+
+	m_instructions.push_back(instr);
+	return instr.size;
 }
 
 void Standalone_Core::program_compile() {
@@ -113,16 +163,46 @@ void Standalone_Core::program_compile() {
 }
 
 void Standalone_Core::link_flash_memory(void *p, size_t len) {
-	m_flash_memory	  = static_cast<u8 *>(p);
+	m_flash_memory	    = static_cast<u8 *>(p);
 	m_flash_memory_size = len;
 }
 
-void Standalone_Core::define_symbol(u64 value, const char *name) {
+void Standalone_Core::define_symbol(u64 value, char const *name) {
 	m_symbol_table[value] = name;
 }
 
-char const *Standalone_Core::disassembly_view() {
-	return "# Program disassembly";
+char *Standalone_Core::disassembly_view() {
+	std::string output;
+	output.reserve(256 * 1024);
+	output += "00000000:\n";
+
+	size_t offset = 0;
+
+	for (size_t i = 0; i < m_instructions.size(); ++i) {
+		auto &inst = m_instructions[i];
+
+		size_t rel_addr = offset & 0xffff;
+		size_t rel_addr_after  = (offset + inst.size) & 0xffff;
+
+		output += std::format(
+			"{:4x}: {}\n",
+			rel_addr,
+			to_string(inst.opcode)
+		);
+
+		if (rel_addr > rel_addr_after && i + 1 < m_instructions.size()) {
+			size_t ref_addr = offset & ~static_cast<size_t>(0xffff);
+			output += std::format("{:08x}:\n", ref_addr);
+		}
+
+		offset += inst.size;
+	}
+
+	char *buf = static_cast<char *>(std::malloc(output.size() + 1));
+	if (!buf) return nullptr;
+
+	std::memcpy(buf, output.data(), output.size() + 1);
+	return buf;
 }
 
 size_t Standalone_Core::get_memory_size() {

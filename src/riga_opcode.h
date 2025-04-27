@@ -1,4 +1,4 @@
-enum class Opcode : u32 {
+enum class Opcode : u16 {
 	// RVI
 	lui,    // U
 	auipc,  // U
@@ -78,3 +78,4 @@ enum class Opcode : u32 {
 	remuw, // R
 };
 
+std::string_view to_string(Opcode opcode) noexcept;

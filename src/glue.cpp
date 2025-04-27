@@ -39,7 +39,7 @@ void EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_define_symbol_2(Standa
   self->define_symbol(value, name);
 }
 
-const char* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_disassembly_view_0(Standalone_Core* self) {
+void* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_disassembly_view_0(Standalone_Core* self) {
   return self->disassembly_view();
 }
 

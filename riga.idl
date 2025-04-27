@@ -5,7 +5,7 @@ interface Standalone_Core {
     void link_flash_memory(VoidPtr p, unsigned long len);
     void define_symbol(unsigned long value, [Const] DOMString name);
 
-    [Const] DOMString disassembly_view();
+    any disassembly_view();
 
     unsigned long get_memory_size();
     VoidPtr get_memory_ptr();

@@ -14,6 +14,10 @@
     core.link_flash_memory(loadPtr, data.fileDataBinary.byteLength);
     core.program_compile();
 
+    const disassembly_str_ptr = core.disassembly_view();
+    console.log(module.UTF8ToString(disassembly_str_ptr));
+    module._free(disassembly_str_ptr);
+
     return () => {
       module.destroy(core);
       module._free(ptr);

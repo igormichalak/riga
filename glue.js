@@ -239,7 +239,7 @@ Standalone_Core.prototype['define_symbol'] = Standalone_Core.prototype.define_sy
 /** @suppress {undefinedVars, duplicate} @this{Object} */
 Standalone_Core.prototype['disassembly_view'] = Standalone_Core.prototype.disassembly_view = function() {
   var self = this.ptr;
-  return UTF8ToString(_emscripten_bind_Standalone_Core_disassembly_view_0(self));
+  return _emscripten_bind_Standalone_Core_disassembly_view_0(self);
 };
 
 /** @suppress {undefinedVars, duplicate} @this{Object} */

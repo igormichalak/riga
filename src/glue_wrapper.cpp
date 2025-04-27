@@ -10,26 +10,32 @@
 #include <format>
 
 #include "riga_bit_vector.h"
-#include "riga_decode.h"
 #include "riga_opcode.h"
+#include "riga_decode.h"
 
 struct Instruction {
+	u8 size;
+	Instr_Fmt fmt;
 	Opcode opcode;
-	union {
-		struct {
-			// U,J,I,R-type -> rd
-			// B,S-type -> rs2
-			u8 op0;
-			// U,J-type -> (4 imm LSB) << 4
-			// I,B,S,R-type -> rs1/zimm
-			u8 op1;
-			u16 imm;
-		};
-		u32 opbits;
-	};
+	u8 rd;
+	u8 rs1;
+	u8 rs2;
+	s64 imm;
+	// union {
+	// 	struct {
+	// 		// U,J,I,R-type -> rd
+	// 		// B,S-type -> rs2
+	// 		u8 op0;
+	// 		// U,J-type -> (4 imm LSB) << 4
+	// 		// I,B,S,R-type -> rs1/zimm
+	// 		u8 op1;
+	// 		// U,J,I,B,S-type -> imm
+	// 		// R-type -> rs2
+	// 		u16 imm;
+	// 	};
+	// 	u32 opbits;
+	// };
 };
-
-enum class Decode_Error {};
 
 class Standalone_Core {
 public:
@@ -39,7 +45,7 @@ public:
 	void link_flash_memory(void *p, size_t len);
 	void define_symbol(u64 value, char const *name);
 
-	char const *disassembly_view();
+	char *disassembly_view();
 
 	size_t get_memory_size();
 	void *get_memory_ptr();
@@ -60,12 +66,12 @@ private:
 
 	std::array<u8, MEMORY_SIZE> m_memory{};
 
-	u64	                  m_pc{0};
+	u64	                     m_pc{0};
 	std::vector<Instruction> m_instructions;
-	Bit_Vector	           m_instruction_offset_vec;
+	Bit_Vector	             m_instruction_offset_vec;
 
 	// Variably-sized flash/program memory.
-	u8	*m_flash_memory{nullptr};
+	u8	  *m_flash_memory{nullptr};
 	size_t m_flash_memory_size{0};
 
 	std::unordered_map<u64, std::string_view> m_symbol_table{};

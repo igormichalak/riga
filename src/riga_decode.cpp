@@ -44,6 +44,17 @@ std::string_view to_string(Instr_Fmt fmt) noexcept {
 	return instr_fmt_names[static_cast<size_t>(fmt)];
 }
 
+static constexpr std::array<std::string_view, 32> register_names = {{
+	"x0", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
+	"s0", "s1", "a0", "a1", "a2", "a3", "a4", "a5",
+	"a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7",
+	"s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6",
+}};
+
+std::string_view to_reg_name(u8 reg) noexcept {
+	return register_names[static_cast<size_t>(reg)];
+}
+
 inline u8 opcode (u32 w) { return w & 0x7f; }
 inline u8 funct3 (u32 w) { return (w >> 12) & 0x07; }
 inline u8 funct7 (u32 w) { return (w >> 25) & 0x7f; }
@@ -54,8 +65,8 @@ inline u8 rs2    (u32 w) { return (w >> 20) & 0x1f; }
 template <unsigned N>
 constexpr s64 sign_extend(u32 w) {
 	static_assert(N > 0 && N < 32, "invalid bit-width");
-	const u32 m = 1U << (N - 1);
-	return static_cast<s64>((w ^ m) - m);
+	const u64 m = 1U << (N - 1);
+	return static_cast<s64>((static_cast<u64>(w) ^ m) - m);
 }
 
 inline s64 imm_i(u32 w) {
@@ -203,6 +214,18 @@ auto decode_opcode(u32 w) -> std::expected<Opcode, Decode_Error> {
 		return Opcode::jalr;
 	case 0x6f:
 		return Opcode::jal;
+	case 0x73:
+		switch (funct3(w)) {
+		case 0b000: return (imm_i(w) == 0) ? Opcode::ecall : Opcode::ebreak;
+		case 0b001: return Opcode::csrrw;
+		case 0b010: return Opcode::csrrs;
+		case 0b011: return Opcode::csrrc;
+		case 0b101: return Opcode::csrrwi;
+		case 0b110: return Opcode::csrrsi;
+		case 0b111: return Opcode::csrrci;
+		default: break;
+		}
+		break;
 	default: break;
 	}
 

@@ -179,23 +179,137 @@ char *Standalone_Core::disassembly_view() {
 	size_t offset = 0;
 
 	for (size_t i = 0; i < m_instructions.size(); ++i) {
-		auto &inst = m_instructions[i];
+		auto &instr = m_instructions[i];
 
 		size_t rel_addr = offset & 0xffff;
-		size_t rel_addr_after  = (offset + inst.size) & 0xffff;
+		size_t rel_addr_after  = (offset + instr.size) & 0xffff;
 
 		output += std::format(
-			"{:4x}: {}\n",
+			"{:4x}:  {}",
 			rel_addr,
-			to_string(inst.opcode)
+			to_string(instr.opcode)
 		);
+
+		switch (instr.opcode) {
+		case Opcode::ecall:
+		case Opcode::ebreak:
+			break;
+		default:
+			switch (instr.fmt) {
+			case Instr_Fmt::U:
+			case Instr_Fmt::J:
+			case Instr_Fmt::I:
+			case Instr_Fmt::R:
+				output += std::format(" {}, ", to_reg_name(instr.rd));
+				break;
+			case Instr_Fmt::B:
+				output += std::format(" {}, ", to_reg_name(instr.rs1));
+				break;
+			case Instr_Fmt::S:
+				output += std::format(" {}, ", to_reg_name(instr.rs2));
+				break;
+			default: break;
+			}
+
+			switch (instr.fmt) {
+			case Instr_Fmt::U:
+				output += std::format("{:#x}", static_cast<u64>(instr.imm) >> 12);
+				break;
+			case Instr_Fmt::J:
+				output += std::format("{:#x}", offset + instr.imm);
+				break;
+			case Instr_Fmt::I:
+				switch (instr.opcode) {
+				case Opcode::jalr:
+				case Opcode::lb:
+				case Opcode::lh:
+				case Opcode::lw:
+				case Opcode::ld:
+				case Opcode::lbu:
+				case Opcode::lhu:
+				case Opcode::lwu:
+					output += std::format("{}({})", instr.imm, to_reg_name(instr.rs1));
+					break;
+				case Opcode::csrrw:
+				case Opcode::csrrs:
+				case Opcode::csrrc:
+				case Opcode::csrrwi:
+				case Opcode::csrrsi:
+				case Opcode::csrrci:
+					output += std::format("{:#x}, ", instr.imm & 0xfff);
+					break;
+				default:
+					output += std::format("{}, ", to_reg_name(instr.rs1));
+					break;
+				}
+				break;
+			case Instr_Fmt::R:
+				output += std::format("{}, ", to_reg_name(instr.rs1));
+				break;
+			case Instr_Fmt::B:
+				output += std::format("{}, ", to_reg_name(instr.rs2));
+				break;
+			case Instr_Fmt::S:
+				output += std::format("{}({})", instr.imm, to_reg_name(instr.rs1));
+				break;
+			default: break;
+			}
+
+			switch (instr.fmt) {
+			case Instr_Fmt::I:
+				switch (instr.opcode) {
+				case Opcode::jalr:
+				case Opcode::lb:
+				case Opcode::lh:
+				case Opcode::lw:
+				case Opcode::ld:
+				case Opcode::lbu:
+				case Opcode::lhu:
+				case Opcode::lwu:
+					break;
+				case Opcode::slli:
+				case Opcode::srli:
+				case Opcode::srai:
+					output += std::format("{}", instr.imm & 0x3f);
+					break;
+				case Opcode::slliw:
+				case Opcode::srliw:
+				case Opcode::sraiw:
+					output += std::format("{}", instr.imm & 0x1f);
+					break;
+				case Opcode::csrrw:
+				case Opcode::csrrs:
+				case Opcode::csrrc:
+					output += std::format("{}", to_reg_name(instr.rs1));
+					break;
+				case Opcode::csrrwi:
+				case Opcode::csrrsi:
+				case Opcode::csrrci:
+					output += std::format("{}", instr.rs1);
+					break;
+				default:
+					output += std::format("{}", instr.imm);
+					break;
+				}
+				break;
+			case Instr_Fmt::R:
+				output += std::format("{}", to_reg_name(instr.rs2));
+				break;
+			case Instr_Fmt::B:
+				output += std::format("{:#x}", offset + instr.imm);
+				break;
+			default: break;
+			}
+		}
+
+		output += "\n";
 
 		if (rel_addr > rel_addr_after && i + 1 < m_instructions.size()) {
 			size_t ref_addr = offset & ~static_cast<size_t>(0xffff);
 			output += std::format("{:08x}:\n", ref_addr);
 		}
 
-		offset += inst.size;
+		offset += instr.size;
 	}
 
 	char *buf = static_cast<char *>(std::malloc(output.size() + 1));

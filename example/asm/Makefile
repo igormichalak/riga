@@ -7,7 +7,7 @@ OBJCOPY := $(RISCV_PREFIX)objcopy
 OBJDUMP := $(RISCV_PREFIX)objdump
 
 # Flags
-CFLAGS  := -march=rv64im -mabi=lp64 -nostdlib -ffreestanding -Wall -Wextra -g
+CFLAGS  := -march=rv64im_zicsr -mabi=lp64 -nostdlib -ffreestanding -Wall -Wextra -g
 LDFLAGS := -T memmap.ld -nostdlib
 
 # Files

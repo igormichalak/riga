@@ -37,5 +37,7 @@
   ></script>
 </svelte:head>
 
-<a href="/upload">New</a>
-<p>Simulator</p>
+<div class="flex flex-col gap-1">
+  <a href="/upload">New</a>
+  <p>Simulator</p>
+</div>

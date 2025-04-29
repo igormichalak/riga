@@ -5,7 +5,29 @@
   import ControlButton from '$lib/ControlButton.svelte';
   import DisassemblyView from '$lib/DisassemblyView.svelte';
 
-  let { data } = $props();
+  let pb = $state();
+  let ps = $state();
+
+  let fileDataBinary = $derived.by(() => {
+    return pb && Uint8Array.from(
+      atob(pb),
+      c => c.charCodeAt(0),
+    );
+  });
+
+  let fileDataSymbols = $derived.by(() => {
+    return ps && Uint8Array.from(
+      atob(ps),
+      c => c.charCodeAt(0),
+    );
+  });
+
+  $effect(() => {
+    const params = new URLSearchParams(window.location.search);
+    pb = params.get('pb');
+    ps = params.get('ps');
+    if (!pb) window.location = '/upload';
+  });
 
   let module = $state();
   let module_HEAPU8 = $derived(module?.HEAPU8);
@@ -75,12 +97,12 @@
   }
 
   $effect(() => {
-    if (!module) return;
+    if (!module || !fileDataBinary) return;
 
-    const ptr = module._malloc(data.fileDataBinary.byteLength + 3);
+    const ptr = module._malloc(fileDataBinary.byteLength + 3);
     const loadPtr = (ptr + 3) & (~3);
 
-    module_HEAPU8.set(data.fileDataBinary, loadPtr);
+    module_HEAPU8.set(fileDataBinary, loadPtr);
 
     core = new module.Standalone_Core();
     core_pc_ptr_u32 = core.get_pc_ptr() / 4;
@@ -88,7 +110,7 @@
     core_register_file_ptr_u32 = core.get_register_file_ptr() / 4;
     core.init();
 
-    core.link_flash_memory(loadPtr, data.fileDataBinary.byteLength);
+    core.link_flash_memory(loadPtr, fileDataBinary.byteLength);
     core.program_compile();
 
     const disassemblyString = module.UTF8ToString(core.disassembly_view());
@@ -161,7 +183,7 @@
         pcSpan.textContent = 'PC: 0x' + module_HEAPU32[core_pc_ptr_u32].toString(16);
       }
       if (core_register_file_ptr_u32) {
-        for (let i = 0; u < registersDiv.children.length; i++) {
+        for (let i = 0; i < registersDiv.children.length; i++) {
           const spanEl = registersDiv.children[i];
           const preEl = spanEl.children[1];
 
@@ -169,7 +191,7 @@
 
           const offset = core_register_file_ptr_u32 + (xn * 2);
           const regh = BigInt(module_HEAPU32[offset + 1]) << BigInt(32);
-          const rehl = BigInt(module_HEAPU32[offset]);
+          const regl = BigInt(module_HEAPU32[offset]);
           preEl.textContent = (regh | regl).toString(radix);
         }
       }
@@ -259,7 +281,9 @@
           >hex</button>
         </div>
       </div>
-      <div bind:this={registersDiv} class="flex-1 flex flex-col justify-between">
+      <div bind:this={registersDiv}
+        class="flex-1 flex flex-col justify-between overflow-scroll"
+      >
         {#each Array.from({ length: 16 }, (_, i) => i) as xn}
           <span data-xn={xn + rpage * 16} class="block flex font-mono">
             <pre>{registerNames[xn + rpage * 16].padStart(3, ' ')}:&nbsp;</pre>

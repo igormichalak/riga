@@ -17,8 +17,6 @@ main:
 	j main
 	j main
 	j main
-	ecall
-	ebreak
 	csrrwi t0, 0xfff, 8
 	csrrwi t1, 0xf00, 2
 	csrrwi t2, 0x07f, 10

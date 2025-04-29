@@ -27,6 +27,10 @@ Standalone_Core* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_Standalone
   return new Standalone_Core();
 }
 
+void EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_init_0(Standalone_Core* self) {
+  self->init();
+}
+
 void EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_program_compile_0(Standalone_Core* self) {
   self->program_compile();
 }
@@ -39,7 +43,11 @@ void EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_define_symbol_2(Standa
   self->define_symbol(value, name);
 }
 
-void* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_disassembly_view_0(Standalone_Core* self) {
+const void* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_disassembly_view_map_0(Standalone_Core* self) {
+  return self->disassembly_view_map();
+}
+
+const void* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_disassembly_view_0(Standalone_Core* self) {
   return self->disassembly_view();
 }
 
@@ -53,6 +61,26 @@ void* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_get_memory_ptr_0(Stan
 
 void* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_get_register_file_ptr_0(Standalone_Core* self) {
   return self->get_register_file_ptr();
+}
+
+void* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_get_pc_ptr_0(Standalone_Core* self) {
+  return self->get_pc_ptr();
+}
+
+void* EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_get_ic_ptr_0(Standalone_Core* self) {
+  return self->get_ic_ptr();
+}
+
+bool EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_set_breakpoint_1(Standalone_Core* self, unsigned int instr_idx) {
+  return self->set_breakpoint(instr_idx);
+}
+
+bool EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_clear_breakpoint_1(Standalone_Core* self, unsigned int instr_idx) {
+  return self->clear_breakpoint(instr_idx);
+}
+
+void EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_reset_0(Standalone_Core* self) {
+  self->reset();
 }
 
 void EMSCRIPTEN_KEEPALIVE emscripten_bind_Standalone_Core_run_0(Standalone_Core* self) {

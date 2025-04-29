@@ -39,18 +39,26 @@ struct Instruction {
 
 class Standalone_Core {
 public:
-	static constexpr size_t MEMORY_SIZE = 1024 * 1024;
+	void init();
 
 	void program_compile();
 	void link_flash_memory(void *p, size_t len);
 	void define_symbol(u64 value, char const *name);
 
-	char *disassembly_view();
+	u32 const *disassembly_view_map();
+	char const *disassembly_view();
 
 	size_t get_memory_size();
 	void *get_memory_ptr();
 	void *get_register_file_ptr();
 
+	void *get_pc_ptr();
+	void *get_ic_ptr();
+
+	bool set_breakpoint(size_t instr_idx);
+	bool clear_breakpoint(size_t instr_idx);
+
+	void reset();
 	void run();
 	void step();
 private:
@@ -64,9 +72,11 @@ private:
 	// (3) 0xC03 - hpmcounter3
 	std::array<u64, 4> m_csrs{};
 
+	static constexpr size_t MEMORY_SIZE = 1024 * 1024;
 	std::array<u8, MEMORY_SIZE> m_memory{};
 
 	u64	                     m_pc{0};
+	size_t	                 m_ic{0};
 	std::vector<Instruction> m_instructions;
 	Bit_Vector	             m_instruction_offset_vec;
 
@@ -75,8 +85,13 @@ private:
 	size_t m_flash_memory_size{0};
 
 	std::unordered_map<u64, std::string_view> m_symbol_table{};
+	std::vector<u32> m_disassembly_view_map{};
+	std::array<Instruction, 128> m_break_instructions{};
+
+	Instruction *m_next_instruction_override = nullptr;
 
 	auto load_instruction(u32 w) -> std::expected<size_t, Decode_Error>;
+	bool execute_next_instruction();
 };
 
 #include "glue.cpp"

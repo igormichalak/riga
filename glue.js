@@ -213,6 +213,12 @@ Standalone_Core.prototype.__class__ = Standalone_Core;
 Standalone_Core.__cache__ = {};
 Module['Standalone_Core'] = Standalone_Core;
 /** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['init'] = Standalone_Core.prototype.init = function() {
+  var self = this.ptr;
+  _emscripten_bind_Standalone_Core_init_0(self);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
 Standalone_Core.prototype['program_compile'] = Standalone_Core.prototype.program_compile = function() {
   var self = this.ptr;
   _emscripten_bind_Standalone_Core_program_compile_0(self);
@@ -237,6 +243,12 @@ Standalone_Core.prototype['define_symbol'] = Standalone_Core.prototype.define_sy
 };
 
 /** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['disassembly_view_map'] = Standalone_Core.prototype.disassembly_view_map = function() {
+  var self = this.ptr;
+  return _emscripten_bind_Standalone_Core_disassembly_view_map_0(self);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
 Standalone_Core.prototype['disassembly_view'] = Standalone_Core.prototype.disassembly_view = function() {
   var self = this.ptr;
   return _emscripten_bind_Standalone_Core_disassembly_view_0(self);
@@ -251,13 +263,45 @@ Standalone_Core.prototype['get_memory_size'] = Standalone_Core.prototype.get_mem
 /** @suppress {undefinedVars, duplicate} @this{Object} */
 Standalone_Core.prototype['get_memory_ptr'] = Standalone_Core.prototype.get_memory_ptr = function() {
   var self = this.ptr;
-  return wrapPointer(_emscripten_bind_Standalone_Core_get_memory_ptr_0(self), VoidPtr);
+  return _emscripten_bind_Standalone_Core_get_memory_ptr_0(self);
 };
 
 /** @suppress {undefinedVars, duplicate} @this{Object} */
 Standalone_Core.prototype['get_register_file_ptr'] = Standalone_Core.prototype.get_register_file_ptr = function() {
   var self = this.ptr;
-  return wrapPointer(_emscripten_bind_Standalone_Core_get_register_file_ptr_0(self), VoidPtr);
+  return _emscripten_bind_Standalone_Core_get_register_file_ptr_0(self);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['get_pc_ptr'] = Standalone_Core.prototype.get_pc_ptr = function() {
+  var self = this.ptr;
+  return _emscripten_bind_Standalone_Core_get_pc_ptr_0(self);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['get_ic_ptr'] = Standalone_Core.prototype.get_ic_ptr = function() {
+  var self = this.ptr;
+  return _emscripten_bind_Standalone_Core_get_ic_ptr_0(self);
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['set_breakpoint'] = Standalone_Core.prototype.set_breakpoint = function(instr_idx) {
+  var self = this.ptr;
+  if (instr_idx && typeof instr_idx === 'object') instr_idx = instr_idx.ptr;
+  return !!(_emscripten_bind_Standalone_Core_set_breakpoint_1(self, instr_idx));
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['clear_breakpoint'] = Standalone_Core.prototype.clear_breakpoint = function(instr_idx) {
+  var self = this.ptr;
+  if (instr_idx && typeof instr_idx === 'object') instr_idx = instr_idx.ptr;
+  return !!(_emscripten_bind_Standalone_Core_clear_breakpoint_1(self, instr_idx));
+};
+
+/** @suppress {undefinedVars, duplicate} @this{Object} */
+Standalone_Core.prototype['reset'] = Standalone_Core.prototype.reset = function() {
+  var self = this.ptr;
+  _emscripten_bind_Standalone_Core_reset_0(self);
 };
 
 /** @suppress {undefinedVars, duplicate} @this{Object} */

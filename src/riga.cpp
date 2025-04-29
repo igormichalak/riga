@@ -5,6 +5,7 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 #include <bit>
 #include <iostream>
 #include <format>
@@ -56,6 +57,7 @@ struct Standalone_Core {
 	std::array<u8, MEMORY_SIZE> m_memory{};
 
 	u64	                     m_pc{0};
+	size_t	                 m_ic{0};
 	std::vector<Instruction> m_instructions;
 	Bit_Vector	             m_instruction_offset_vec;
 
@@ -64,6 +66,14 @@ struct Standalone_Core {
 	size_t m_flash_memory_size{0};
 
 	std::unordered_map<u64, std::string_view> m_symbol_table{};
+	std::vector<u32> m_disassembly_view_map{};
+	std::array<Instruction, 128> m_break_instructions{};
+
+	// if set it gets executed instead of usual m_instractions[m_ic],
+	// then gets cleared
+	Instruction *m_next_instruction_override = nullptr;
+
+	void init();
 
 	auto load_instruction(u32 w) -> std::expected<size_t, Decode_Error>;
 
@@ -71,15 +81,32 @@ struct Standalone_Core {
 	void link_flash_memory(void *p, size_t len);
 	void define_symbol(u64 value, char const *name);
 
-	char *disassembly_view();
+	u32 const *disassembly_view_map();
+	char const *disassembly_view();
 
 	size_t get_memory_size();
 	void *get_memory_ptr();
 	void *get_register_file_ptr();
 
+	void *get_pc_ptr();
+	void *get_ic_ptr();
+	bool execute_next_instruction();
+
+	bool set_breakpoint(size_t instr_idx);
+	bool clear_breakpoint(size_t instr_idx);
+
+	void reset();
 	void run();
 	void step();
 };
+
+void Standalone_Core::init()
+{
+	for (size_t i = 0; i < m_break_instructions.size(); ++i) {
+		m_break_instructions[i].fmt    = Instr_Fmt::I;
+		m_break_instructions[i].opcode = Opcode::ebreak;
+	}
+}
 
 auto Standalone_Core::load_instruction(u32 w)
 	-> std::expected<size_t, Decode_Error>
@@ -171,12 +198,21 @@ void Standalone_Core::define_symbol(u64 value, char const *name) {
 	m_symbol_table[value] = name;
 }
 
-char *Standalone_Core::disassembly_view() {
-	std::string output;
-	output.reserve(256 * 1024);
-	output += "00000000:\n";
+u32 const *Standalone_Core::disassembly_view_map() {
+	return m_disassembly_view_map.data();
+}
 
+char const *Standalone_Core::disassembly_view() {
+	static std::string output = []{
+		std::string s;
+		s.reserve(256 * 1024);
+		return s;
+	}();
+
+	output = "00000000:\n";
 	size_t offset = 0;
+
+	m_disassembly_view_map.assign(m_instructions.size() + 1, 0);
 
 	for (size_t i = 0; i < m_instructions.size(); ++i) {
 		auto &instr = m_instructions[i];
@@ -184,6 +220,7 @@ char *Standalone_Core::disassembly_view() {
 		size_t rel_addr = offset & 0xffff;
 		size_t rel_addr_after  = (offset + instr.size) & 0xffff;
 
+		m_disassembly_view_map[i] = output.length();
 		output += std::format(
 			"{:4x}:  {}",
 			rel_addr,
@@ -312,11 +349,7 @@ char *Standalone_Core::disassembly_view() {
 		offset += instr.size;
 	}
 
-	char *buf = static_cast<char *>(std::malloc(output.size() + 1));
-	if (!buf) return nullptr;
-
-	std::memcpy(buf, output.data(), output.size() + 1);
-	return buf;
+	return output.c_str();
 }
 
 size_t Standalone_Core::get_memory_size() {
@@ -331,10 +364,91 @@ void *Standalone_Core::get_register_file_ptr() {
 	return m_register_file.data();
 }
 
+bool Standalone_Core::execute_next_instruction() {
+	if (m_ic == m_instructions.size()) {
+		return false;
+	}
+
+	Instruction &instr = m_next_instruction_override == nullptr
+		?  m_instructions[m_ic]
+		: *m_next_instruction_override;
+
+	m_next_instruction_override = nullptr;
+
+	switch (instr.opcode) {
+	case Opcode::ebreak:
+		if (instr.size == 0)
+		{
+			size_t idx = static_cast<size_t>(instr.imm);
+			m_next_instruction_override = &m_break_instructions[idx];
+			return false;
+		}
+		break;
+	default:
+		break;
+	}
+
+	m_pc += instr.size;
+	m_ic += 1;
+
+	return true;
+}
+
+void *Standalone_Core::get_pc_ptr() {
+	return &m_pc;
+}
+
+void *Standalone_Core::get_ic_ptr() {
+	return &m_ic;
+}
+
+bool Standalone_Core::set_breakpoint(size_t instr_idx) {
+	if (instr_idx >= m_instructions.size()) return false;
+
+	for (size_t i = 0; i < m_break_instructions.size(); ++i) {
+		Instruction &br_instr = m_break_instructions[i];
+		if (br_instr.size == 0)
+		{
+			br_instr.imm = i;
+			std::swap(m_instructions[instr_idx], br_instr);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool Standalone_Core::clear_breakpoint(size_t instr_idx) {
+	if (instr_idx >= m_instructions.size()) return false;
+
+	Instruction &br_instr = m_instructions[instr_idx];
+	if (br_instr.size == 0 && br_instr.opcode == Opcode::ebreak)
+	{
+		size_t break_idx = static_cast<size_t>(br_instr.imm);
+		std::swap(br_instr, m_break_instructions[break_idx]);
+		return true;
+	}
+
+	return false;
+}
+
+void Standalone_Core::reset() {
+	m_register_file.fill(0);
+	m_csrs.fill(0);
+	m_memory.fill(0);
+
+	m_pc = 0;
+	m_ic = 0;
+}
+
 void Standalone_Core::run() {
-	return;
+	if (m_ic == m_instructions.size()) {
+		reset();
+	}
+	while (execute_next_instruction());
 }
 
 void Standalone_Core::step() {
-	return;
+	bool is_break = !execute_next_instruction();
+	if (is_break) execute_next_instruction();
 }

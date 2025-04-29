@@ -1,16 +1,26 @@
 interface Standalone_Core {
     void Standalone_Core();
 
+    void init();
+
     void program_compile();
     void link_flash_memory(VoidPtr p, unsigned long len);
     void define_symbol(unsigned long value, [Const] DOMString name);
 
-    any disassembly_view();
+    [Const] any disassembly_view_map();
+    [Const] any disassembly_view();
 
     unsigned long get_memory_size();
-    VoidPtr get_memory_ptr();
-    VoidPtr get_register_file_ptr();
+    any get_memory_ptr();
+    any get_register_file_ptr();
 
+    any get_pc_ptr();
+    any get_ic_ptr();
+
+    boolean set_breakpoint(unsigned long instr_idx);
+    boolean clear_breakpoint(unsigned long instr_idx);
+
+    void reset();
     void run();
     void step();
 };

@@ -364,18 +364,306 @@ void *Standalone_Core::get_register_file_ptr() {
 	return m_register_file.data();
 }
 
+size_t calculate_ic(u64 pc) {
+	return 0;
+}
+
+size_t get_address(u64 base, s64 offset) {
+	s64 signed_addr = static_cast<s64>(base) + offset;
+	return static_cast<size_t>(signed_addr);
+}
+
 bool Standalone_Core::execute_next_instruction() {
 	if (m_ic == m_instructions.size()) {
 		return false;
 	}
 
-	Instruction &instr = m_next_instruction_override == nullptr
-		?  m_instructions[m_ic]
-		: *m_next_instruction_override;
+	Instruction &instr = m_next_instruction_override
+		? *m_next_instruction_override
+		:  m_instructions[m_ic];
 
 	m_next_instruction_override = nullptr;
 
+	bool advance_pc = true;
+
+	s64 rs1  = static_cast<s64>(m_register_file[instr.rs1]);
+	s64 rs2  = static_cast<s64>(m_register_file[instr.rs2]);
+	u64 rs1u = m_register_file[instr.rs1];
+	u64 rs2u = m_register_file[instr.rs2];
+
 	switch (instr.opcode) {
+	case Opcode::lui: {
+		m_register_file[instr.rd] = instr.imm;
+		break;
+	}
+	case Opcode::auipc: {
+		m_register_file[instr.rd] = get_address(m_pc, instr.imm);
+		break;
+	}
+	case Opcode::jal: {
+		m_register_file[instr.rd] = m_pc + instr.size;
+		m_pc = get_address(m_pc, instr.imm);
+		m_ic = calculate_ic(m_pc);
+		advance_pc = false;
+		break;
+	}
+	case Opcode::jalr:{
+		m_register_file[instr.rd] = m_pc + instr.size;
+		m_pc = get_address(rs1u, instr.imm) & ~1ULL;
+		m_ic = calculate_ic(m_pc);
+		advance_pc = false;
+		break;
+	}
+	case Opcode::beq: {
+		if (rs1 == rs2) {
+			m_pc = get_address(m_pc, instr.imm);
+			m_ic = calculate_ic(m_pc);
+			advance_pc = false;
+		}
+		break;
+	}
+	case Opcode::bne: {
+		if (rs1 != rs2) {
+			m_pc = get_address(m_pc, instr.imm);
+			m_ic = calculate_ic(m_pc);
+			advance_pc = false;
+		}
+		break;
+	}
+	case Opcode::blt: {
+		if (rs1 < rs2) {
+			m_pc = get_address(m_pc, instr.imm);
+			m_ic = calculate_ic(m_pc);
+			advance_pc = false;
+		}
+		break;
+	}
+	case Opcode::bltu: {
+		if (rs1u < rs2u) {
+			m_pc = get_address(m_pc, instr.imm);
+			m_ic = calculate_ic(m_pc);
+			advance_pc = false;
+		}
+		break;
+	}
+	case Opcode::bge: {
+		if (rs1 >= rs2) {
+			m_pc = get_address(m_pc, instr.imm);
+			m_ic = calculate_ic(m_pc);
+			advance_pc = false;
+		}
+		break;
+	}
+	case Opcode::bgeu: {
+		if (rs1u >= rs2u) {
+			m_pc = get_address(m_pc, instr.imm);
+			m_ic = calculate_ic(m_pc);
+			advance_pc = false;
+		}
+		break;
+	}
+	case Opcode::lb: {
+		size_t address = get_address(rs1u, instr.imm);
+		m_register_file[instr.rd] = sign_extend<8>(m_memory[address]);
+		break;
+	}
+	case Opcode::lbu: {
+		size_t address = get_address(rs1u, instr.imm);
+		m_register_file[instr.rd] = m_memory[address];
+		break;
+	}
+	case Opcode::lh: {
+		size_t address = get_address(rs1u, instr.imm);
+		assert(address % alignof(u16) == 0 && "unaligned load");
+		u16 v = *reinterpret_cast<u16 *>(m_memory.data() + address);
+		m_register_file[instr.rd] = sign_extend<16>(v);
+		break;
+	}
+	case Opcode::lhu: {
+		size_t address = get_address(rs1u, instr.imm);
+		assert(address % alignof(u16) == 0 && "unaligned load");
+		u16 v = *reinterpret_cast<u16 *>(m_memory.data() + address);
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::lw: {
+		size_t address = get_address(rs1u, instr.imm);
+		assert(address % alignof(u32) == 0 && "unaligned load");
+		u32 v = *reinterpret_cast<u32 *>(m_memory.data() + address);
+		m_register_file[instr.rd] = sign_extend<32>(v);
+		break;
+	}
+	case Opcode::lwu: {
+		size_t address = get_address(rs1u, instr.imm);
+		assert(address % alignof(u32) == 0 && "unaligned load");
+		u32 v = *reinterpret_cast<u32 *>(m_memory.data() + address);
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::ld: {
+		size_t address = get_address(rs1u, instr.imm);
+		assert(address % alignof(u64) == 0 && "unaligned load");
+		u64 v = *reinterpret_cast<u64 *>(m_memory.data() + address);
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::sb: {
+		size_t address = get_address(rs1u, instr.imm);
+		m_memory[address] = rs2u & 0xff;
+		break;
+	}
+	case Opcode::sh: {
+		size_t address = get_address(rs1u, instr.imm);
+		assert(address % alignof(u16) == 0 && "unaligned store");
+		u16 *dst = reinterpret_cast<u16 *>(m_memory.data() + address);
+		*dst = rs2u & 0xffff;
+		break;
+	}
+	case Opcode::sw: {
+		size_t address = get_address(rs1u, instr.imm);
+		assert(address % alignof(u32) == 0 && "unaligned store");
+		u32 *dst = reinterpret_cast<u32 *>(m_memory.data() + address);
+		*dst = rs2u & 0xffffffff;
+		break;
+	}
+	case Opcode::sd: {
+		size_t address = get_address(rs1u, instr.imm);
+		assert(address % alignof(u64) == 0 && "unaligned store");
+		u64 *dst = reinterpret_cast<u64 *>(m_memory.data() + address);
+		*dst = rs2u;
+		break;
+	}
+	case Opcode::add: {
+		m_register_file[instr.rd] = rs1u + rs2u;
+		break;
+	}
+	case Opcode::addi: {
+		m_register_file[instr.rd] = rs1 + instr.imm;
+		break;
+	}
+	case Opcode::addw: {
+		u64 v = sign_extend<32>((rs1u + rs2u) & 0xffffffff);
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::addiw: {
+		u64 v = sign_extend<32>((rs1 + instr.imm) & 0xffffffff);
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::slt: {
+		u64 v = (rs1 < rs2) ? 1 : 0;
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::slti: {
+		u64 v = (rs1 < instr.imm) ? 1 : 0;
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::sltu: {
+		u64 v = (rs1u < rs2u) ? 1 : 0;
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::sltiu: {
+		u64 v = (rs1u < static_cast<u64>(instr.imm)) ? 1 : 0;
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::sll: {
+		m_register_file[instr.rd] = rs1u << (rs2u & 0x3f);
+		break;
+	}
+	case Opcode::slli: {
+		m_register_file[instr.rd] = rs1u << (instr.imm & 0x3f);
+		break;
+	}
+	case Opcode::sllw: {
+		u64 v = (rs1u << (rs2u & 0x1f)) & 0xffffffff;
+		m_register_file[instr.rd] = sign_extend<32>(v);
+		break;
+	}
+	case Opcode::slliw: {
+		u64 v = (rs1u << (instr.imm & 0x1f)) & 0xffffffff;
+		m_register_file[instr.rd] = sign_extend<32>(v);
+		break;
+	}
+	case Opcode::srl: {
+		m_register_file[instr.rd] = rs1u >> (rs2u & 0x3f);
+		break;
+	}
+	case Opcode::srli: {
+		m_register_file[instr.rd] = rs1u >> (instr.imm & 0x3f);
+		break;
+	}
+	case Opcode::srlw: {
+		u64 v = (rs1u >> (rs2u & 0x1f)) & 0xffffffff;
+		m_register_file[instr.rd] = sign_extend<32>(v);
+		break;
+	}
+	case Opcode::srliw: {
+		u64 v = (rs1u >> (instr.imm & 0x1f)) & 0xffffffff;
+		m_register_file[instr.rd] = sign_extend<32>(v);
+		break;
+	}
+	case Opcode::sra: {
+		m_register_file[instr.rd] = rs1 >> (rs2u & 0x3f);
+		break;
+	}
+	case Opcode::srai: {
+		m_register_file[instr.rd] = rs1 >> (instr.imm & 0x3f);
+		break;
+	}
+	case Opcode::sraw: {
+		u64 v = (rs1 >> (rs2u & 0x1f)) & 0xffffffff;
+		m_register_file[instr.rd] = sign_extend<32>(v);
+		break;
+	}
+	case Opcode::sraiw: {
+		u64 v = (rs1 >> (instr.imm & 0x1f)) & 0xffffffff;
+		m_register_file[instr.rd] = sign_extend<32>(v);
+		break;
+	}
+	case Opcode::xor_: {
+		m_register_file[instr.rd] = rs1u ^ rs2u;
+		break;
+	}
+	case Opcode::or_: {
+		m_register_file[instr.rd] = rs1u | rs2u;
+		break;
+	}
+	case Opcode::and_: {
+		m_register_file[instr.rd] = rs1u & rs2u;
+		break;
+	}
+	case Opcode::xori: {
+		m_register_file[instr.rd] = rs1u ^ static_cast<u64>(instr.imm);
+		break;
+	}
+	case Opcode::ori: {
+		m_register_file[instr.rd] = rs1u | static_cast<u64>(instr.imm);
+		break;
+	}
+	case Opcode::andi: {
+		m_register_file[instr.rd] = rs1u & static_cast<u64>(instr.imm);
+		break;
+	}
+	case Opcode::sub: {
+		m_register_file[instr.rd] = rs1u - rs2u;
+		break;
+	}
+	case Opcode::subw: {
+		u64 v = sign_extend<32>((rs1u - rs2u) & 0xffffffff);
+		m_register_file[instr.rd] = v;
+		break;
+	}
+	case Opcode::ecall: {
+		u64 a0 = m_register_file[10];
+		char const *str = reinterpret_cast<char const *>(m_memory.data() + a0);
+		printf("ecall: %s\n", str);
+		break;
+	}
 	case Opcode::ebreak:
 		if (instr.size == 0)
 		{
@@ -384,12 +672,38 @@ bool Standalone_Core::execute_next_instruction() {
 			return false;
 		}
 		break;
-	default:
-		break;
+
+	// RV64M
+	// mul
+	// mulh
+	// mulhsu
+	// mulhu
+	// div
+	// divu
+	// rem
+	// remu
+	// mulw
+	// divw
+	// divuw
+	// remw
+	// remuw
+
+	// csrrw
+	// csrrs
+	// csrrc
+	// csrrwi
+	// csrrsi
+	// csrrci
+
+	default: break;
 	}
 
-	m_pc += instr.size;
-	m_ic += 1;
+	m_register_file[0] = 0;
+
+	if (advance_pc) {
+		m_pc += instr.size;
+		m_ic += 1;
+	}
 
 	return true;
 }

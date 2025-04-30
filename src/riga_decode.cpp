@@ -62,13 +62,6 @@ inline u8 rd     (u32 w) { return (w >> 7)  & 0x1f; }
 inline u8 rs1    (u32 w) { return (w >> 15) & 0x1f; }
 inline u8 rs2    (u32 w) { return (w >> 20) & 0x1f; }
 
-template <unsigned N>
-constexpr s64 sign_extend(u32 w) {
-	static_assert(N > 0 && N < 32, "invalid bit-width");
-	const u64 m = 1U << (N - 1);
-	return static_cast<s64>((static_cast<u64>(w) ^ m) - m);
-}
-
 inline s64 imm_i(u32 w) {
 	return sign_extend<12>(w >> 20);
 }
@@ -88,7 +81,7 @@ inline s64 imm_b(u32 w) {
 }
 
 inline s64 imm_u(u32 w) {
-	return static_cast<s64>(w & 0xfffff000U);
+	return sign_extend<32>(w & 0xfffff000U);
 }
 
 inline s64 imm_j(u32 w) {

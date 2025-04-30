@@ -192,7 +192,7 @@
           const offset = core_register_file_ptr_u32 + (xn * 2);
           const regh = BigInt(module_HEAPU32[offset + 1]) << BigInt(32);
           const regl = BigInt(module_HEAPU32[offset]);
-          preEl.textContent = (regh | regl).toString(radix);
+          preEl.textContent = BigInt.asIntN(64, regh | regl).toString(radix);
         }
       }
 

@@ -90,6 +90,8 @@ struct Standalone_Core {
 
 	void *get_pc_ptr();
 	void *get_ic_ptr();
+
+	size_t calculate_ic(u64 pc);
 	bool execute_next_instruction();
 
 	bool set_breakpoint(size_t instr_idx);
@@ -156,6 +158,18 @@ auto Standalone_Core::load_instruction(u32 w)
 	}
 
 	m_instructions.push_back(instr);
+
+	switch (instr.size) {
+	case 2:
+		bv_push(m_instruction_offset_vec, 1);
+		break;
+	case 4:
+		bv_push(m_instruction_offset_vec, 1);
+		bv_push(m_instruction_offset_vec, 0);
+		break;
+	default: break;
+	}
+
 	return instr.size;
 }
 
@@ -180,6 +194,9 @@ void Standalone_Core::program_compile() {
 		} else {
 			w = static_cast<u32>(lhw);
 		}
+		if ((w & 0xffff) == 0) {
+			break;
+		}
 		if (auto ilen = load_instruction(w); ilen.has_value()) {
 			offset += *ilen;
 		} else {
@@ -187,6 +204,8 @@ void Standalone_Core::program_compile() {
 			break;
 		}
 	}
+
+	bv_build(m_instruction_offset_vec);
 }
 
 void Standalone_Core::link_flash_memory(void *p, size_t len) {
@@ -364,8 +383,10 @@ void *Standalone_Core::get_register_file_ptr() {
 	return m_register_file.data();
 }
 
-size_t calculate_ic(u64 pc) {
-	return 0;
+size_t Standalone_Core::calculate_ic(u64 pc) {
+	size_t pos = static_cast<size_t>(pc >> 1);
+	u32 rank = bv_rank(m_instruction_offset_vec, pos);
+	return static_cast<size_t>(rank);
 }
 
 size_t get_address(u64 base, s64 offset) {

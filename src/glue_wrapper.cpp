@@ -91,6 +91,7 @@ private:
 	Instruction *m_next_instruction_override = nullptr;
 
 	auto load_instruction(u32 w) -> std::expected<size_t, Decode_Error>;
+	size_t calculate_ic(u64 pc);
 	bool execute_next_instruction();
 };
 

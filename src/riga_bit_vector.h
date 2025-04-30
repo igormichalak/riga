@@ -6,3 +6,5 @@ struct Bit_Vector {
 
 void bv_build(Bit_Vector &bv);
 u32 bv_rank(const Bit_Vector &bv, size_t pos);
+inline void bv_push(Bit_Vector &bv, u8 v);
+
